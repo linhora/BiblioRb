@@ -74,8 +74,12 @@ end
 ###################################################
 
 def definir_depot
-  depot ||= DEPOT_PAR_DEFAUT
-
+  if ARGV[0] =~ /--depot=/
+    depot = ARGV[0].gsub /--depot=/, ""
+    ARGV.shift
+  else
+    depot = DEPOT_PAR_DEFAUT
+  end
   depot
 end
 
@@ -134,39 +138,220 @@ def lister( les_emprunts )
   # (Pcq. sinon la mise en page emacs n'est pas bonne avec <<PERDU>>!)
   #
 
-  listing = '' # A MODIFIER!
-  [les_emprunts, listing]
+	listing = ''
+	i=0
+	format=nil
+
+	if ARGV[0] =~ /--format=/
+    	format = ARGV[0].gsub /--format=/, ""
+    	ARGV.shift
+  	end
+	
+	for i in (0..les_emprunts.size-1)
+    	listing = listing + les_emprunts[i].to_s(format) + "\n"
+  	end
+  
+  	unless ARGV[0] =~ /--inclure_perdus/
+    	listing = listing.gsub /\ \[\[PERDU\]\]/, ""
+  	else
+    	ARGV.shift
+  	end
+
+	[les_emprunts, listing]
 end
 
 
 def emprunter( les_emprunts )
-  [les_emprunts, nil] # A MODIFIER!
+	tabEmpruntIn = []
+	unless STDIN.tty?
+		STDIN.read.split(" ").map do |temp|
+  			tabEmpruntIn << temp.chomp
+		end
+	end
+
+	if tabEmpruntIn.size > 0
+		while (tabEmpruntIn.size >= 4)
+		  nom = tabEmpruntIn.shift
+		  courriel = tabEmpruntIn.shift
+		  titre = tabEmpruntIn.shift
+		  auteurs = tabEmpruntIn.shift
+		  if livre_disponible( les_emprunts, titre )
+			tempEmprunt = Emprunt.new( nom, courriel, titre, auteurs, false )
+			les_emprunts << tempEmprunt
+		  else
+			erreur "livre avec meme titre deja emprunte"
+		  end
+		end
+	elsif ARGV.size >= 4
+		nom = ARGV.shift
+		courriel = ARGV.shift
+		titre = ARGV.shift
+		auteurs = ARGV.shift
+		if livre_disponible( les_emprunts, titre )
+		  tempEmprunt = Emprunt.new( nom, courriel, titre, auteurs, false )
+		  les_emprunts << tempEmprunt
+		else
+		  erreur "livre avec meme titre deja emprunte"
+		end
+  	end
+
+  [les_emprunts, nil]
 end
 
 def emprunts( les_emprunts )
-  liste_emprunts = '' # A MODIFIER!
-  [les_emprunts, liste_emprunts]
+	liste_emprunts = ''
+	if ARGV.size == 1
+		nom = ARGV.shift
+		unless les_emprunts.empty?
+		  	for i in 0..les_emprunts.size - 1
+				if les_emprunts[i].nom == nom
+				  liste_emprunts = liste_emprunts + "#{nom}\n"
+				end
+		  	end
+		  	if trouve == false
+				erreur "Aucun livre emprunte par #{nom}"
+		  	end
+		end
+	end
+
+	[les_emprunts, liste_emprunts]
 end
 
 def rapporter( les_emprunts )
-  [les_emprunts, nil] # A MODIFIER!
+  if les_emprunts.empty?
+      erreur "Aucun livre avec titre #{titre}"
+  end  
+  
+  tempTab = []
+  unless STDIN.tty?
+    STDIN.read.split(" ").map do |temp|
+      tempTab << temp.chomp
+    end
+  end
+  
+  trouve = false
+  if tempTab.size > 0
+    while (tempTab.size >= 1)
+      titre = tempTab.shift
+      i = 0
+      while (i < les_emprunts.size && trouve == false)
+        if les_emprunts[i].titre == titre
+	        trouve = true
+	        for j in i..les_emprunts.size - 2
+	          les_emprunts[j] = les_emprunts[j+1]
+	        end
+          les_emprunts.delete_at(les_emprunts.size-1)
+        end
+        i+=1
+      end
+    end
+  elsif ARGV.size == 1
+    titre = ARGV.shift
+    i = 0
+    while (i < les_emprunts.size && trouve == false)
+      if les_emprunts[i].titre == titre
+	      trouve = true
+	      for j in i..les_emprunts.size - 2
+	        les_emprunts[j] = les_emprunts[j+1]
+	      end
+        les_emprunts.delete_at(les_emprunts.size-1)
+      end
+      i+=1
+    end
+  end
+  if trouve == false
+    erreur "Aucun livre avec titre #{titre}"
+  end  
+
+  [les_emprunts, nil]
 end
 
 def trouver( les_emprunts )
-  liste_titres = '' # A MODIFIER!
+  liste_titres = ''
+  if ARGV.size == 1
+    titre = ARGV.shift
+    unless les_emprunts.empty?
+      for i in 0..les_emprunts.size - 1
+        if les_emprunts[i].titre =~ /#{titre}/
+          liste_titres = liste_titres + "#{titre}\n"
+        end
+      end
+      if (trouve==false)
+	      erreur "Aucun livre avec titre #{titre}"
+	    end
+    end
+  end
   [les_emprunts, liste_titres]
 end
 
 def indiquer_perte( les_emprunts )
+  trouve = false
+  if ARGV.size == 1
+    titre = ARGV.shift
+    unless les_emprunts.empty?
+      i = 0
+      while (i < les_emprunts.size && trouve == false)
+        if les_emprunts[i].titre == titre
+          les_emprunts[i].indiquer_perte
+          trouve = true
+        end
+        i = i +1
+      end
+      if trouve == false
+        erreur "Aucun livre emprunte #{titre}"
+      end
+    end
+  end
   [les_emprunts, nil]
 end
 
 def emprunteur( les_emprunts )
-  nom_emprunteur = "\n"  # A MODIFIER!
-
+  nom_emprunteur = ''
+  trouve = false
+  if ARGV.size == 1
+    titre = ARGV.shift
+    unless les_emprunts.empty?
+      i = 0
+      while (i < les_emprunts.size && trouve == false)
+        if les_emprunts[i].titre == titre
+          nom_emprunteur = les_emprunts[i].nom
+          trouve = true
+        end
+        i = i +1
+      end
+      if trouve == false
+        erreur "Aucun livre emprunte #{titre}"
+      end    
+    end
+  end
   [les_emprunts, nom_emprunteur]
 end
 
+#fonction complementaires
+
+def tri_rapide( les_emprunts )
+	for j in 0..les_emprunts.size - 1
+		for i in 0..les_emprunts.size - 2
+			if les_emprunts[i].<=>(les_emprunts[i+1]) == 1
+				temp = les_emprunts[i]
+				les_emprunts[i] = les_emprunts[i+1]
+				les_emprunts[i+1] = temp
+			end
+		end
+	end
+end
+
+def livre_disponible ( les_emprunts, titre_livre )
+  disponible = true
+  i = 0
+  while (i < les_emprunts.size && disponible)
+    if les_emprunts[i].titre == titre_livre
+      disponible = false
+    end
+    i = i + 1
+  end
+  disponible
+end
 
 
 #######################################################

@@ -38,7 +38,18 @@ class Emprunt
     # Format simple par defaut, pour les cas de tests de base.a
     perdu = perdu? ? ' [[PERDU]]' : ''
     if le_format.nil?
-      return format('%s :: [ %-10s ] "%s"', nom, auteurs, titre) << perdu
+      	return format('%s :: [ %-10s ] "%s"', nom, auteurs, titre) << perdu
+	else
+		le_format = le_format.gsub /%(-?.?[0-9]*)N/, '%\1s'
+		le_format = format(le_format, nom)
+		le_format = le_format.gsub /%(-?.?[0-9]*)C/, '%\1s'
+		le_format = format(le_format, courriel)
+		le_format = le_format.gsub /%(-?.?[0-9]*)T/, '%\1s'
+		le_format = format(le_format, titre)
+		le_format = le_format.gsub /%(-?.?[0-9]*)A/, '%\1s'
+		le_format = format(le_format, auteurs)
+  		le_format = le_format.gsub /\\/, ''	
+		return le_format << perdu
     end
 
     fail "Cas non traite: to_s( #{le_format} )"
@@ -49,6 +60,25 @@ class Emprunt
   # Ordonne les emprunts selon le nom en premier, puis selon le titre.
   #
   def <=>( autre )
+	#On vérifie les noms
+    case @nom <=> autre.nom
+    when 0
+      #Les noms sont égaux, on vérifie les titres
+      case @titre <=> autre.titre
+      when 0
+	return 0
+      when -1
+        return -1
+      else
+        return 1
+      end
+
+    when -1
+      return -1
+
+    else
+      return 1
+    end
   end
 
   #

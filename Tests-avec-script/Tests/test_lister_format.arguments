@@ -1,0 +1,1 @@
+lister --format="%T::%N"
